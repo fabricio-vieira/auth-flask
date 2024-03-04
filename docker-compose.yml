@@ -2,7 +2,7 @@ services:
   db:
     image: mysql:latest
     restart: always
-    envirnment:
+    environment:
       MYSQL_USER: 'admin'
       MYSQL_PASSWORD: 'admin123'
       MYSQL_DATABASE: 'auth-flask'
@@ -10,7 +10,6 @@ services:
     ports:
       - "3306:3306"
     expose:
-      - '3306'
-    
-    volums:
+      - '3306'    
+    volumes:
       - ./data/mysql:/data/db
