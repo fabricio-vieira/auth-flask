@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from database import db
 from flask_login import LoginManager, login_user, current_user, logout_user, login_required
 from models.user import User
+import bcrypt
 
 app = Flask(__name__)
 
@@ -33,7 +34,7 @@ def login():
         user = User.query.filter_by(username=username).first()
 
         #Validações
-        if user and user.password == password:
+        if user and bcrypt.checkpw(str.encode(password), str.encode(user.password)):
             login_user(user)
             print(current_user.is_authenticated)
             return jsonify({f"message": "Login Válido"})
@@ -54,7 +55,8 @@ def create_user():
         if user:
             return jsonify({"message":"Usuário já cadastrado"})
         else:
-            new_user = User(username=username, password=password)
+            hashed_password = bcrypt.hashpw(str.encode(password), bcrypt.gensalt())
+            new_user = User(username=username, password=hashed_password, role='user')
             db.session.add(new_user)
             db.session.commit()
         return jsonify({"message": "Cadastro realizado com sucesso"})
@@ -76,7 +78,7 @@ def user_logout():
 def read_users():
     users = User.query.all()
     # total_users = {"Total": len(users)}
-    user_list = [{"ID": user.id, "Chave": user.password,"Nome": user.username} for user in users]
+    user_list = [{"ID": user.id, "Chave": user.password,"Nome": user.username, "Role": user.role} for user in users]
     return jsonify(user_list)
 
 
@@ -95,6 +97,9 @@ def read_user(id_user):
 def update_user(id_user):
     data = request.json
     user = User.query.get(id_user)
+    if id_user != current_user.id and current_user.role == "user":
+        return jsonify({"message": "Operação não permitida"}), 403
+
     if user and data.get("password"):
        user.password = data.get("password")
        db.session.commit()
@@ -110,6 +115,8 @@ def delete_user(id_user):
     if not user:
          return jsonify({"message": "usuário não encontrado"}), 404
     else:
+        if current_user.role != 'admin':
+            return jsonify({"message": "Operação não permitida"}), 403
         if user.id != current_user.id:
             db.session.delete(user)
             db.session.commit()
